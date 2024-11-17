@@ -1,59 +1,38 @@
-// src/components/Register.js
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { register } from '../services/authService';
+import register from '../Services/Auth'; // Default import
+import loginWithGoogle  from '../Services/Auth';
+import { useNavigate } from 'react-router-dom'; // Use useNavigate instead of useHistory
+import { GoogleLogin } from '@react-oauth/google';
 
 function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState(null);
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // Use navigate for programmatic routing
 
-  const handleRegister = async (e) => {
-    e.preventDefault();
-
-    if (password !== confirmPassword) {
-      setError("Les mots de passe ne correspondent pas.");
-      return;
+  const handleRegister = async () => {
+    const data = await register(email, password); // Assuming you have a register function
+    if (data.token) {
+      localStorage.setItem('token', data.token); // Store JWT token
+      navigate('/profile'); // Use navigate to redirect
     }
+  };
 
-    try {
-      await register(email, password);
-      navigate('/login');
-    } catch (error) {
-      setError("Erreur lors de l'inscription. Veuillez réessayer.");
+  const handleGoogleLogin = async (response) => {
+    const data = await loginWithGoogle(response.credential); // Ensure loginWithGoogle is defined
+    if (data.token) {
+      localStorage.setItem('token', data.token);
+      navigate('/profile'); // Use navigate to redirect
     }
   };
 
   return (
     <div>
-      <h2>Inscription</h2>
-      {error && <p style={{ color: 'red' }}>{error}</p>}
-      <form onSubmit={handleRegister}>
-        <input
-          type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          placeholder="Email"
-          required
-        />
-        <input
-          type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          placeholder="Mot de passe"
-          required
-        />
-        <input
-          type="password"
-          value={confirmPassword}
-          onChange={(e) => setConfirmPassword(e.target.value)}
-          placeholder="Confirmez le mot de passe"
-          required
-        />
-        <button type="submit">S'inscrire</button>
-      </form>
+      <h2>Register</h2>
+      <input type="email" placeholder="Email" onChange={(e) => setEmail(e.target.value)} />
+      <input type="password" placeholder="Password" onChange={(e) => setPassword(e.target.value)} />
+      <button onClick={handleRegister}>Register</button>
+
+      <GoogleLogin onSuccess={handleGoogleLogin} onError={() => console.log('Login Failed')} />
     </div>
   );
 }

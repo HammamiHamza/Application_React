@@ -1,32 +1,36 @@
-// src/components/Profile.js
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 
+const API_URL = 'http://localhost:3000'; // Replace with your backend API
+
 function Profile() {
-  const [profile, setProfile] = useState(null);
+  const [user, setUser] = useState(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
-      const response = await axios.get('http://localhost:3000/user/profile', {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`${API_URL}/user/profile`, {
         headers: {
-          'Authorization': `Bearer ${localStorage.getItem('user')}`,
+          Authorization: `Bearer ${token}`,
         },
       });
-      setProfile(response.data);
+      setUser(response.data);
     };
     fetchProfile();
   }, []);
 
-  if (!profile) return <div>Loading...</div>;
-
-  return (
+  return user ? (
     <div>
-      <img src={profile.photo} alt="Profile" />
-      <h1>{profile.email}</h1>
-      <p>{profile.bio}</p>
-      <h3>Skills:</h3>
-      <ul>{profile.skills.map((skill) => <li key={skill}>{skill}</li>)}</ul>
+      <h2>Profile</h2>
+      <img src={user.profilePic} alt="Profile" />
+      <h3>{user.name}</h3>
+      <p>{user.bio}</p>
+      <p>{user.skills.join(', ')}</p>
+      <p>GitHub: <a href={user.github}>Link</a></p>
+      <p>LinkedIn: <a href={user.linkedin}>Link</a></p>
     </div>
+  ) : (
+    <div>Loading...</div>
   );
 }
 

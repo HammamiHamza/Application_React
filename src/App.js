@@ -1,62 +1,33 @@
-// src/App.js
-import React from 'react';
-import { register, login, logout } from '../Services/AuthServices';
-
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Login from './Components/Login';
-import Profile from './Components/Profile';
 import Register from './Components/Register';
+import Profile from './Components/Profile';
+import Post from './Components/Post';
+import './App.css';
 
 function App() {
-  const isAuthenticated = () => {
-    return localStorage.getItem('user') !== null;
-  };
+  const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
+
+  useEffect(() => {
+    document.body.className = darkMode ? 'dark-mode' : '';
+    localStorage.setItem('darkMode', darkMode);
+  }, [darkMode]);
 
   return (
     <Router>
-      <div>
-        <Routes>
-          <Route path="/" element={<Navigate to="/login" />} />
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          <Route
-            path="/profile"
-            element={
-              isAuthenticated() ? <Profile /> : <Navigate to="/login" />
-            }
-          />
-        </Routes>
-      </div>
+      <button onClick={() => setDarkMode(!darkMode)}>
+        {darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+      </button>
+      
+      <Routes>
+        <Route path="/login" element={<Login />} />
+        <Route path="/register" element={<Register />} />
+        <Route path="/profile" element={<Profile />} />
+        <Route path="/posts" element={<Post />} />
+      </Routes>
     </Router>
   );
 }
 
 export default App;
-
-
-
-// import logo from './logo.svg';
-// import './App.css';
-
-// function App() {
-//   return (
-//     <div className="App">
-//       <header className="App-header">
-//         <img src={logo} className="App-logo" alt="logo" />
-//         <p>
-//           Edit <code>src/App.js</code> and save to reload.
-//         </p>
-//         <a
-//           className="App-link"
-//           href="https://reactjs.org"
-//           target="_blank"
-//           rel="noopener noreferrer"
-//         >
-//           Learn React
-//         </a>
-//       </header>
-//     </div>
-//   );
-// }
-
-// export default App;
