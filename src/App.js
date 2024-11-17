@@ -44,6 +44,8 @@ import Profile from './Components/Profile';
 import Post from './Components/Post';
 import Comments from './Components/Comments';
 import './App.css';
+import Navbar from './Components/Navbar';
+import Users from './Components/Users';
 
 function App() {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
@@ -56,16 +58,14 @@ function App() {
   return (
     <Router>  {/* Wrap your app in Router */}
       <GoogleOAuthProvider clientId="YOUR_GOOGLE_CLIENT_ID">
-        <button onClick={() => setDarkMode(!darkMode)}>
-          {darkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        </button>
+      <Navbar />
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/posts" element={<Post />} />
           <Route path="/comments" element={<Comments />} />
-
+          <Route path="/users" element={<Users />} />
         </Routes>
       </GoogleOAuthProvider>
     </Router>
