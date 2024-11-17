@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'http://localhost:3000'; // Replace with your backend API
+const API_URL = 'https://bookings-80088-default-rtdb.firebaseio.com'; // Replace with your backend API
 
 export const register = async (email, password) => {
   try {
