@@ -42,6 +42,7 @@ import Login from './Components/Login';
 import Register from './Components/Register';
 import Profile from './Components/Profile';
 import Post from './Components/Post';
+import Comments from './Components/Comments';
 import './App.css';
 
 function App() {
@@ -63,6 +64,8 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
           <Route path="/posts" element={<Post />} />
+          <Route path="/comments" element={<Comments />} />
+
         </Routes>
       </GoogleOAuthProvider>
     </Router>
