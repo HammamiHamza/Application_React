@@ -1,6 +1,6 @@
 // src/Services/AuthServices.jsx
-const API_KEY = 'AIzaSyA748K_vC-v9DbEXuXfSG0l7gtqfN-aNQ4';
-const BUCKET_NAME = 'reactproject-59e80.appspot.com';
+const API_KEY = process.env.REACT_APP_FIREBASE_API_KEY;
+const BUCKET_NAME = process.env.REACT_APP_FIREBASE_STORAGE_BUCKET;
 const FIRESTORE_URL = 'https://firestore.googleapis.com/v1';
 
 // Fonction utilitaire pour compresser l'image
