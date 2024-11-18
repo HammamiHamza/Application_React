@@ -340,8 +340,8 @@ export const getAllUsers = async () => {
     }
 
     const data = await response.json();
-    const currentUserDoc = await getUserProfile(user.localId);
-    
+    console.log('Raw Firestore data:', data); // Debug log
+
     return data.documents.map(doc => {
       const userId = doc.name.split('/').pop();
       return {
@@ -350,9 +350,11 @@ export const getAllUsers = async () => {
         lastName: doc.fields?.lastName?.stringValue || '',
         photoUrl: doc.fields?.photoUrl?.stringValue || '',
         followers: doc.fields?.followers?.arrayValue?.values?.map(f => f.stringValue) || [],
+        following: doc.fields?.following?.arrayValue?.values?.map(f => f.stringValue) || [],
         isFollowing: doc.fields?.followers?.arrayValue?.values?.some(
           f => f.stringValue === user.localId
-        ) || false
+        ) || false,
+        email: doc.fields?.email?.stringValue || ''
       };
     });
   } catch (error) {
@@ -363,27 +365,33 @@ export const getAllUsers = async () => {
 
 export const followUser = async (userId) => {
   try {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || !user.token) {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (!currentUser || !currentUser.token) {
       throw new Error('User not authenticated');
     }
 
-    const userDoc = await getUserProfile(userId);
-    const followers = userDoc.followers || [];
+    // Initialize following array if it doesn't exist
+    const following = Array.isArray(currentUser.following) ? [...currentUser.following] : [];
     
+    // Add the new userId if not already following
+    if (!following.includes(userId)) {
+      following.push(userId);
+    }
+
+    // Update the user document in Firestore
     const response = await fetch(
-      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${userId}`,
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${currentUser.localId}`,
       {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          'Authorization': `Bearer ${currentUser.token}`
         },
         body: JSON.stringify({
           fields: {
-            followers: {
+            following: {
               arrayValue: {
-                values: [...followers, { stringValue: user.localId }]
+                values: following.map(id => ({ stringValue: id }))
               }
             }
           }
@@ -392,10 +400,20 @@ export const followUser = async (userId) => {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to follow user');
+      throw new Error('Failed to update following list');
     }
 
-    return await response.json();
+    // Update localStorage with new following list
+    const updatedUser = {
+      ...currentUser,
+      following
+    };
+    localStorage.setItem('user', JSON.stringify(updatedUser));
+
+    // Trigger a storage event to refresh the Home component
+    window.dispatchEvent(new Event('storage'));
+
+    return true;
   } catch (error) {
     console.error('Error following user:', error);
     throw error;
@@ -404,27 +422,28 @@ export const followUser = async (userId) => {
 
 export const unfollowUser = async (userId) => {
   try {
-    const user = JSON.parse(localStorage.getItem('user'));
-    if (!user || !user.token) {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (!currentUser || !currentUser.token) {
       throw new Error('User not authenticated');
     }
 
-    const userDoc = await getUserProfile(userId);
-    const followers = userDoc.followers.filter(id => id !== user.localId);
+    // Remove user from following list
+    const following = (currentUser.following || []).filter(id => id !== userId);
     
+    // Update only the following field in Firebase
     const response = await fetch(
-      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${userId}`,
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${currentUser.localId}?updateMask.fieldPaths=following`,
       {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${user.token}`
+          'Authorization': `Bearer ${currentUser.token}`
         },
         body: JSON.stringify({
           fields: {
-            followers: {
+            following: {
               arrayValue: {
-                values: followers.map(id => ({ stringValue: id }))
+                values: following.map(id => ({ stringValue: id }))
               }
             }
           }
@@ -436,7 +455,13 @@ export const unfollowUser = async (userId) => {
       throw new Error('Failed to unfollow user');
     }
 
-    return await response.json();
+    // Update local storage
+    localStorage.setItem('user', JSON.stringify({
+      ...currentUser,
+      following
+    }));
+
+    return true;
   } catch (error) {
     console.error('Error unfollowing user:', error);
     throw error;

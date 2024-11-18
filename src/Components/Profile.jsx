@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, updateUserProfile, updateProfilePhoto } from '../Services/AuthServices';
+import { getUserProfile, updateUserProfile, updateProfilePhoto, followUser, unfollowUser } from '../Services/AuthServices';
 import { Link } from 'react-router-dom';
 
 function Profile() {
@@ -10,9 +10,14 @@ function Profile() {
   const [editedProfile, setEditedProfile] = useState(null);
   const [newSkill, setNewSkill] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [isFollowing, setIsFollowing] = useState(false);
+  const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
     fetchProfile();
+    if (currentUser?.following?.includes(profile?.userId)) {
+      setIsFollowing(true);
+    }
   }, []);
 
   const fetchProfile = async () => {
@@ -100,6 +105,26 @@ function Profile() {
       setError(err.message);
     } finally {
       setUploading(false);
+    }
+  };
+
+  const handleFollow = async () => {
+    try {
+      await followUser(profile.userId);
+      setIsFollowing(true);
+      fetchProfile(); // Refresh profile data
+    } catch (err) {
+      setError(err.message);
+    }
+  };
+
+  const handleUnfollow = async () => {
+    try {
+      await unfollowUser(profile.userId);
+      setIsFollowing(false);
+      fetchProfile(); // Refresh profile data
+    } catch (err) {
+      setError(err.message);
     }
   };
 
@@ -284,13 +309,16 @@ function Profile() {
                     </button>
                   </div>
                 ) : (
-                  <button 
-                    className="btn btn-primary" 
-                    type="button"
-                    onClick={handleEdit}
-                  >
-                    Modifier
-                  </button>
+                  <div>
+                    <button 
+                      className="btn btn-primary" 
+                      type="button"
+                      onClick={handleEdit}
+                    >
+                      Modifier
+                    </button>
+                  
+                  </div>
                 )}
               </div>
 

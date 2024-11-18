@@ -15,8 +15,19 @@ function Users() {
   const fetchUsers = async () => {
     try {
       const usersData = await getAllUsers();
-      setUsers(usersData.filter(user => user.id !== currentUser?.localId));
+      console.log('Fetched users data:', usersData); // Debug log
+      
+      const filteredUsers = usersData
+        .filter(user => user.id !== currentUser?.localId)
+        .map(user => ({
+          ...user,
+          isFollowing: currentUser?.following?.includes(user.id) || false
+        }));
+      
+      console.log('Filtered users:', filteredUsers); // Debug log
+      setUsers(filteredUsers);
     } catch (err) {
+      console.error('Error in fetchUsers:', err); // Debug log
       setError(err.message);
     } finally {
       setLoading(false);
@@ -25,9 +36,18 @@ function Users() {
 
   const handleFollow = async (userId) => {
     try {
+      console.log('Following user:', userId);
+      console.log('Current user following before:', currentUser?.following);
+      
       await followUser(userId);
-      fetchUsers(); // Refresh the list
+      
+      // Refresh the current user data from localStorage
+      const updatedUser = JSON.parse(localStorage.getItem('user'));
+      console.log('Current user following after:', updatedUser?.following);
+      
+      fetchUsers(); // Refresh the list to update followers count
     } catch (err) {
+      console.error('Follow error:', err);
       setError(err.message);
     }
   };
@@ -35,67 +55,102 @@ function Users() {
   const handleUnfollow = async (userId) => {
     try {
       await unfollowUser(userId);
-      fetchUsers(); // Refresh the list
+      fetchUsers(); // Refresh the list to update followers count
     } catch (err) {
       setError(err.message);
     }
   };
 
-  if (loading) return <div className="text-center mt-5">Chargement...</div>;
-  if (error) return <div className="alert alert-danger mt-5">{error}</div>;
+  if (loading) {
+    return (
+      <div className="container mt-5">
+        <div className="text-center">
+          <div className="spinner-border" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="container mt-5">
+        <div className="alert alert-danger" role="alert">
+          {error}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mt-5">
       <h2 className="mb-4">Utilisateurs</h2>
-      <div className="row">
-        {users.map(user => (
-          <div key={user.id} className="col-md-4 mb-4">
-            <div className="card">
-              <div className="card-body">
-                <div className="d-flex align-items-center mb-3">
-                  {user.photoUrl ? (
-                    <img
-                      src={user.photoUrl}
-                      alt={user.firstName}
-                      className="rounded-circle me-3"
-                      style={{ width: '50px', height: '50px', objectFit: 'cover' }}
-                    />
-                  ) : (
-                    <div className="rounded-circle bg-light me-3 d-flex align-items-center justify-content-center"
-                         style={{ width: '50px', height: '50px' }}>
-                      <i className="bi bi-person-fill"></i>
+      {users.length === 0 ? (
+        <div className="alert alert-info">Aucun utilisateur trouvé</div>
+      ) : (
+        <div className="row">
+          {users.map(user => (
+            <div key={user.id} className="col-md-4 mb-4">
+              <div className="card h-100 shadow-sm">
+                <div className="card-body">
+                  <div className="d-flex align-items-center mb-3">
+                    {user.photoUrl ? (
+                      <img
+                        src={user.photoUrl}
+                        alt={`${user.firstName} ${user.lastName}`}
+                        className="rounded-circle me-3"
+                        style={{ 
+                          width: '60px', 
+                          height: '60px', 
+                          objectFit: 'cover',
+                          border: '2px solid #dee2e6'
+                        }}
+                      />
+                    ) : (
+                      <div 
+                        className="rounded-circle bg-secondary me-3 
+                        d-flex align-items-center justify-content-center"
+                        style={{ 
+                          width: '60px', 
+                          height: '60px',
+                          border: '2px solid #dee2e6'
+                        }}
+                      >
+                        <i className="bi bi-person-fill"></i>
+                      </div>
+                    )}
+                    <div>
+                      <h5 className="card-title mb-0">
+                        <Link to={`/profile/${user.id}`}>
+                          {user.firstName} {user.lastName}
+                        </Link>
+                      </h5>
+                      <small className="text-muted">{user.followers?.length || 0} followers</small>
                     </div>
-                  )}
-                  <div>
-                    <h5 className="card-title mb-0">
-                      <Link to={`/profile/${user.id}`}>
-                        {user.firstName} {user.lastName}
-                      </Link>
-                    </h5>
-                    <small className="text-muted">{user.followers?.length || 0} followers</small>
                   </div>
+                  
+                  {user.isFollowing ? (
+                    <button
+                      className="btn btn-outline-primary btn-sm"
+                      onClick={() => handleUnfollow(user.id)}
+                    >
+                      Ne plus suivre
+                    </button>
+                  ) : (
+                    <button
+                      className="btn btn-primary btn-sm"
+                      onClick={() => handleFollow(user.id)}
+                    >
+                      Suivre
+                    </button>
+                  )}
                 </div>
-                
-                {user.isFollowing ? (
-                  <button
-                    className="btn btn-outline-primary btn-sm"
-                    onClick={() => handleUnfollow(user.id)}
-                  >
-                    Ne plus suivre
-                  </button>
-                ) : (
-                  <button
-                    className="btn btn-primary btn-sm"
-                    onClick={() => handleFollow(user.id)}
-                  >
-                    Suivre
-                  </button>
-                )}
               </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

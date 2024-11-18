@@ -33,6 +33,12 @@ function Navbar() {
                   </Link>
                 </li>
                 <li className="nav-item">
+                  <Link className="nav-link" to="/posts">
+                    <i className="bi bi-file-text me-2"></i>
+                    Posts
+                  </Link>
+                </li>
+                <li className="nav-item">
                   <Link className="nav-link" to="/users">
                     <i className="bi bi-people-fill me-2"></i>
                     Utilisateurs
