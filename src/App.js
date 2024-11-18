@@ -37,6 +37,8 @@ import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';  // Import Router
 
 import { GoogleOAuthProvider } from '@react-oauth/google';  // Ensure this is inside the Router
+import 'bootstrap/dist/css/bootstrap.min.css';
+
 
 import Login from './Components/Login';
 import Register from './Components/Register';

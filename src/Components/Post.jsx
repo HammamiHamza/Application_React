@@ -1,70 +1,19 @@
-// import React, { useState } from 'react';
-// import axios from 'axios';
 
-// const API_URL = 'http://localhost:3000'; // Replace with your backend API
-
-// function Post() {
-//   const [content, setContent] = useState('');
-//   const [posts, setPosts] = useState([]);
-
-//   const handlePost = async () => {
-//     const token = localStorage.getItem('token');
-//     const response = await axios.post(`${API_URL}/posts`, { content }, {
-//       headers: {
-//         Authorization: `Bearer ${token}`,
-//       },
-//     });
-//     setPosts([...posts, response.data]);
-//   };
-
-//   return (
-//     <div>
-//       <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="Write a post..."></textarea>
-//       <button onClick={handlePost}>Post</button>
-
-//       <div>
-//         {posts.map((post) => (
-//           <div key={post._id}>
-//             <p>{post.content}</p>
-//             <Comment postId={post._id} />
-//           </div>
-//         ))}
-//       </div>
-//     </div>
-//   );
-// }
-
-// function Comment({ postId }) {
-//   const [comment, setComment] = useState('');
-
-//   const handleComment = async () => {
-//     const token = localStorage.getItem('token');
-//     await axios.post(`${API_URL}/comments`, { comment, postId }, {
-//       headers: {
-//         Authorization: `Bearer ${token}`,
-//       },
-//     });
-//   };
-
-//   return (
-//     <div>
-//       <textarea value={comment} onChange={(e) => setComment(e.target.value)} placeholder="Add a comment..."></textarea>
-//       <button onClick={handleComment}>Comment</button>
-//     </div>
-//   );
-// }
-
-// export default Post;
 import React, { useState, useEffect } from 'react';
 import { db } from '../firebase'; // Import Firebase configuration
-import { collection, addDoc, updateDoc, doc, serverTimestamp, onSnapshot, query, orderBy } from 'firebase/firestore'; // Firestore functions
-
+import { collection, addDoc, updateDoc, doc, serverTimestamp, onSnapshot, query, orderBy, increment,where, getDocs } from 'firebase/firestore'; // Firestore functions
+import { FaThumbsUp, FaShare } from 'react-icons/fa'; // Import icons for like and share
 function Posts() {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
   const [postId, setPostId] = useState(null); // Store ID of post being edited, if any
   const [commentContent, setCommentContent] = useState(''); // For new comment input
   const [comments, setComments] = useState([]); // Store comments for the post
+  const [likes, setLikes] = useState(0); // Track number of likes
+  const [posts, setPosts] = useState([]);
+
+  const [searchQuery, setSearchQuery] = useState('');
+
 
   // Function to create a new post
   const handleCreatePost = async () => {
@@ -73,9 +22,9 @@ function Posts() {
         title,
         content,
         createdAt: serverTimestamp(),
+        likes: 0, // Initialize likes to 0 for a new post
       });
       console.log('Document written with ID: ', docRef.id);
-      // Clear fields after creation
       setTitle('');
       setContent('');
       setPostId(docRef.id); // Set postId to the newly created post to manage comments
@@ -86,7 +35,7 @@ function Posts() {
 
   // Function to update an existing post
   const handleUpdatePost = async () => {
-    if (!postId) return; // Ensure there's a post to update
+    if (!postId) return;
 
     try {
       const postRef = doc(db, 'posts', postId);
@@ -96,7 +45,6 @@ function Posts() {
         updatedAt: serverTimestamp(),
       });
       console.log('Document updated with ID: ', postId);
-      // Clear fields after update
       setTitle('');
       setContent('');
       setPostId(null);
@@ -118,7 +66,7 @@ function Posts() {
         userName: 'Example User', // Replace with actual user name
       });
       console.log('Comment added successfully');
-      setCommentContent(''); // Clear comment input after adding
+      setCommentContent('');
     } catch (error) {
       console.error('Error adding comment:', error);
     }
@@ -134,12 +82,51 @@ function Posts() {
         setComments(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
       });
 
-      return () => unsubscribe(); // Cleanup on unmount
+      return () => unsubscribe();
     }
   }, [postId]);
 
+  // Like functionality
+  const handleLikePost = async () => {
+    if (!postId) return;
+
+    try {
+      const postRef = doc(db, 'posts', postId);
+      await updateDoc(postRef, { likes: increment(1) });
+      setLikes(likes + 1); // Update local likes state
+    } catch (error) {
+      console.error('Error updating likes:', error);
+    }
+  };
+
+  // Share functionality
+  const handleSharePost = () => {
+    navigator.clipboard.writeText(window.location.href); // Copy current page URL
+    alert('Post URL copied to clipboard!');
+  };
+
+  //search 
+
+  // Fetch posts based on search query
+  const handleSearch = async () => {
+    const postsRef = collection(db, 'posts');
+    const q = query(postsRef, where('title', '>=', searchQuery), where('title', '<=', searchQuery + '\uf8ff'));
+
+    const snapshot = await getDocs(q);
+    setPosts(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+  };
+
+  // Update posts list on search query change
+  useEffect(() => {
+    handleSearch();
+  }, [searchQuery]);
+
+  useEffect(() => {
+    handleSearch();
+  }, [searchQuery]);
+
   return (
-    <div>
+    <div className="container mt-5">
       <h2>{postId ? 'Edit Post' : 'Create Post'}</h2>
       <input
         type="text"
@@ -156,6 +143,16 @@ function Posts() {
         {postId ? 'Update Post' : 'Create Post'}
       </button>
 
+      {/* Like and Share Section */}
+      <div className="post-actions">
+        <button onClick={handleLikePost} className="like-button">
+          <FaThumbsUp /> Like {likes}
+        </button>
+        <button onClick={handleSharePost} className="share-button">
+          <FaShare /> Share
+        </button>
+      </div>
+
       {/* Comment Section */}
       <div>
         <h3>Comments</h3>
@@ -171,6 +168,25 @@ function Posts() {
         />
         <button onClick={handleAddComment}>Add Comment</button>
       </div>
+
+      {/*Research user*/ }
+      <div>
+      <h2>Search Posts</h2>
+      <input
+        type="text"
+        placeholder="Search by title..."
+        value={searchQuery}
+        onChange={(e) => setSearchQuery(e.target.value)}
+      />
+      <div>
+        {posts.map((post) => (
+          <div key={post.id}>
+            <h3>{post.title}</h3>
+            <p>{post.content}</p>
+          </div>
+        ))}
+      </div>
+    </div>
     </div>
   );
 }
