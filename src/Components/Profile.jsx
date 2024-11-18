@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { getUserProfile, updateUserProfile, updateProfilePhoto, followUser, unfollowUser } from '../Services/AuthServices';
-import { Link } from 'react-router-dom';
+import { getUserProfile, updateUserProfile, updateProfilePhoto, followUser, unfollowUser, getUserNames } from '../Services/AuthServices';
+import { Link, useParams } from 'react-router-dom';
 
 function Profile() {
   const [profile, setProfile] = useState(null);
@@ -11,25 +11,36 @@ function Profile() {
   const [newSkill, setNewSkill] = useState('');
   const [uploading, setUploading] = useState(false);
   const [isFollowing, setIsFollowing] = useState(false);
+  const [followerDetails, setFollowerDetails] = useState([]);
+  const { userId } = useParams();
   const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
-    fetchProfile();
-    if (currentUser?.following?.includes(profile?.userId)) {
-      setIsFollowing(true);
-    }
-  }, []);
+    const loadData = async () => {
+      await fetchProfile();
+      if (profile?.followers?.length > 0) {
+        await fetchFollowerDetails(profile.followers);
+      }
+    };
+    loadData();
+  }, [userId]);
 
   const fetchProfile = async () => {
     try {
       const user = JSON.parse(localStorage.getItem('user'));
-      if (!user || !user.localId) {
+      if (!user || !user.token) {
         throw new Error('User not authenticated');
       }
 
-      const profileData = await getUserProfile(user.localId);
+      const targetUserId = userId || user.localId;
+      const profileData = await getUserProfile(targetUserId);
+      
       setProfile(profileData);
       setEditedProfile(profileData);
+      
+      if (currentUser?.following?.includes(targetUserId)) {
+        setIsFollowing(true);
+      }
     } catch (err) {
       console.error('Error fetching profile:', err);
       setError(err.message);
@@ -122,9 +133,12 @@ function Profile() {
 
   const handleFollow = async () => {
     try {
-      await followUser(profile.userId);
+      await followUser(userId);
       setIsFollowing(true);
-      fetchProfile(); // Refresh profile data
+      await fetchProfile();
+      if (profile?.followers?.length > 0) {
+        await fetchFollowerDetails(profile.followers);
+      }
     } catch (err) {
       setError(err.message);
     }
@@ -132,11 +146,23 @@ function Profile() {
 
   const handleUnfollow = async () => {
     try {
-      await unfollowUser(profile.userId);
+      await unfollowUser(userId);
       setIsFollowing(false);
-      fetchProfile(); // Refresh profile data
+      await fetchProfile();
+      if (profile?.followers?.length > 0) {
+        await fetchFollowerDetails(profile.followers);
+      }
     } catch (err) {
       setError(err.message);
+    }
+  };
+
+  const fetchFollowerDetails = async (followerIds) => {
+    try {
+      const details = await getUserNames(followerIds);
+      setFollowerDetails(details);
+    } catch (err) {
+      console.error('Error fetching follower details:', err);
     }
   };
 
@@ -363,14 +389,14 @@ function Profile() {
                   Followers ({profile?.followers?.length || 0})
                 </h4>
                 <div className="d-flex flex-wrap gap-2">
-                  {profile?.followers?.length > 0 ? (
-                    profile.followers.map((followerId, index) => (
+                  {followerDetails.length > 0 ? (
+                    followerDetails.map((follower) => (
                       <Link 
-                        key={index}
-                        to={`/profile/${followerId}`}
+                        key={follower.id}
+                        to={`/profile/${follower.id}`}
                         className="badge bg-primary text-decoration-none"
                       >
-                        {followerId}
+                        {follower.displayName}
                       </Link>
                     ))
                   ) : (

@@ -36,18 +36,9 @@ function Users() {
 
   const handleFollow = async (userId) => {
     try {
-      console.log('Following user:', userId);
-      console.log('Current user following before:', currentUser?.following);
-      
       await followUser(userId);
-      
-      // Refresh the current user data from localStorage
-      const updatedUser = JSON.parse(localStorage.getItem('user'));
-      console.log('Current user following after:', updatedUser?.following);
-      
-      fetchUsers(); // Refresh the list to update followers count
+      await fetchUsers(); // Refresh the list to update followers count
     } catch (err) {
-      console.error('Follow error:', err);
       setError(err.message);
     }
   };
@@ -55,7 +46,7 @@ function Users() {
   const handleUnfollow = async (userId) => {
     try {
       await unfollowUser(userId);
-      fetchUsers(); // Refresh the list to update followers count
+      await fetchUsers(); // Refresh the list to update followers count
     } catch (err) {
       setError(err.message);
     }
@@ -126,7 +117,7 @@ function Users() {
                         </Link>
                       </h5>
                       <small className="text-muted">
-                        {user?.followers?.length || 0} followers
+                        {Array.isArray(user.followers) ? user.followers.length : 0} followers
                       </small>
                     </div>
                   </div>

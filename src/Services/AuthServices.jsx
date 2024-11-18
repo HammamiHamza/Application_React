@@ -209,24 +209,25 @@ export const getUserProfile = async (userId) => {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to fetch user profile');
+      throw new Error('Failed to fetch profile');
     }
 
     const data = await response.json();
     
     return {
-      email: data.fields?.email?.stringValue || '',
+      userId: userId,
       firstName: data.fields?.firstName?.stringValue || '',
       lastName: data.fields?.lastName?.stringValue || '',
       photoUrl: data.fields?.photoUrl?.stringValue || '',
-      bio: data.fields?.bio?.stringValue || '',
       github: data.fields?.github?.stringValue || '',
       linkedin: data.fields?.linkedin?.stringValue || '',
-      skills: data.fields?.skills?.arrayValue?.values?.map(skill => skill.stringValue) || [],
-      createdAt: data.fields?.createdAt?.timestampValue || new Date().toISOString()
+      skills: data.fields?.skills?.arrayValue?.values?.map(v => v.stringValue) || [],
+      followers: data.fields?.followers?.arrayValue?.values?.map(v => v.stringValue) || [],
+      following: data.fields?.following?.arrayValue?.values?.map(v => v.stringValue) || [],
+      bio: data.fields?.bio?.stringValue || ''
     };
   } catch (error) {
-    console.error('Error fetching user profile:', error);
+    console.error('Error fetching profile:', error);
     throw error;
   }
 };
@@ -531,6 +532,43 @@ export const unfollowUser = async (userId) => {
     return true;
   } catch (error) {
     console.error('Error unfollowing user:', error);
+    throw error;
+  }
+};
+
+export const getUserNames = async (userIds) => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.token) {
+      throw new Error('User not authenticated');
+    }
+
+    const promises = userIds.map(async (userId) => {
+      const response = await fetch(
+        `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${userId}`,
+        {
+          headers: {
+            'Authorization': `Bearer ${user.token}`
+          }
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+
+      const data = await response.json();
+      return {
+        id: userId,
+        firstName: data.fields?.firstName?.stringValue || '',
+        lastName: data.fields?.lastName?.stringValue || '',
+        displayName: `${data.fields?.firstName?.stringValue || ''} ${data.fields?.lastName?.stringValue || ''}`.trim() || 'Utilisateur'
+      };
+    });
+
+    return await Promise.all(promises);
+  } catch (error) {
+    console.error('Error fetching user names:', error);
     throw error;
   }
 };
