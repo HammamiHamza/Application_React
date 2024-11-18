@@ -47,9 +47,21 @@ function Profile() {
   const handleSave = async () => {
     try {
       setLoading(true);
-      await updateUserProfile(editedProfile);
+      await updateUserProfile({
+        ...editedProfile,
+        firstName: editedProfile.firstName,
+        lastName: editedProfile.lastName
+      });
       setProfile(editedProfile);
       setIsEditing(false);
+      
+      const currentUser = JSON.parse(localStorage.getItem('user'));
+      localStorage.setItem('user', JSON.stringify({
+        ...currentUser,
+        firstName: editedProfile.firstName,
+        lastName: editedProfile.lastName,
+        displayName: `${editedProfile.firstName} ${editedProfile.lastName}`
+      }));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -188,15 +200,37 @@ function Profile() {
               </div>
 
               {/* Informations de base */}
-              <div className="text-center mb-4">
-                <h2>{profile?.firstName} {profile?.lastName}</h2>
-                <p className="text-muted">
-                  <i className="bi bi-envelope me-2"></i>{profile?.email}
-                </p>
-                <p className="text-muted">
-                  <i className="bi bi-calendar3 me-2"></i>
-                  Membre depuis: {formatDate(profile?.createdAt)}
-                </p>
+              <div className="mb-4">
+                {isEditing ? (
+                  <div className="row">
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Prénom</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="firstName"
+                        value={editedProfile?.firstName || ''}
+                        onChange={handleChange}
+                        placeholder="Prénom"
+                      />
+                    </div>
+                    <div className="col-md-6 mb-3">
+                      <label className="form-label">Nom</label>
+                      <input
+                        type="text"
+                        className="form-control"
+                        name="lastName"
+                        value={editedProfile?.lastName || ''}
+                        onChange={handleChange}
+                        placeholder="Nom"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <h2 className="text-center">
+                    {profile?.firstName} {profile?.lastName}
+                  </h2>
+                )}
               </div>
 
               {/* Bio */}

@@ -95,7 +95,7 @@ function Users() {
               <div className="card h-100 shadow-sm">
                 <div className="card-body">
                   <div className="d-flex align-items-center mb-3">
-                    {user.photoUrl ? (
+                    {user?.photoUrl ? (
                       <img
                         src={user.photoUrl}
                         alt={`${user.firstName} ${user.lastName}`}
@@ -109,24 +109,25 @@ function Users() {
                       />
                     ) : (
                       <div 
-                        className="rounded-circle bg-secondary me-3 
-                        d-flex align-items-center justify-content-center"
+                        className="rounded-circle bg-secondary me-3 d-flex align-items-center justify-content-center"
                         style={{ 
                           width: '60px', 
                           height: '60px',
                           border: '2px solid #dee2e6'
                         }}
                       >
-                        <i className="bi bi-person-fill"></i>
+                        <i className="bi bi-person-fill text-white"></i>
                       </div>
                     )}
                     <div>
                       <h5 className="card-title mb-0">
                         <Link to={`/profile/${user.id}`}>
-                          {user.firstName} {user.lastName}
+                          {user.displayName || `${user.firstName || ''} ${user.lastName || ''}`}
                         </Link>
                       </h5>
-                      <small className="text-muted">{user.followers?.length || 0} followers</small>
+                      <small className="text-muted">
+                        {user?.followers?.length || 0} followers
+                      </small>
                     </div>
                   </div>
                   

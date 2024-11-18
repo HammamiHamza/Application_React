@@ -290,17 +290,10 @@ export const updateUserProfile = async (profileData) => {
         },
         body: JSON.stringify({
           fields: {
+            firstName: { stringValue: profileData.firstName || '' },
+            lastName: { stringValue: profileData.lastName || '' },
             bio: { stringValue: profileData.bio || '' },
             skills: { arrayValue: { values: (profileData.skills || []).map(skill => ({ stringValue: skill })) } },
-            projects: { arrayValue: { values: (profileData.projects || []).map(project => ({
-              mapValue: {
-                fields: {
-                  title: { stringValue: project.title || '' },
-                  description: { stringValue: project.description || '' },
-                  link: { stringValue: project.link || '' }
-                }
-              }
-            })) } },
             github: { stringValue: profileData.github || '' },
             linkedin: { stringValue: profileData.linkedin || '' }
           }
@@ -354,7 +347,8 @@ export const getAllUsers = async () => {
         isFollowing: doc.fields?.followers?.arrayValue?.values?.some(
           f => f.stringValue === user.localId
         ) || false,
-        email: doc.fields?.email?.stringValue || ''
+        email: doc.fields?.email?.stringValue || '',
+        displayName: `${doc.fields?.firstName?.stringValue || ''} ${doc.fields?.lastName?.stringValue || ''}`.trim() || 'Utilisateur'
       };
     });
   } catch (error) {
@@ -378,60 +372,8 @@ export const followUser = async (userId) => {
       following.push(userId);
     }
 
-    // Update the user document in Firestore
-    const response = await fetch(
-      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${currentUser.localId}`,
-      {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${currentUser.token}`
-        },
-        body: JSON.stringify({
-          fields: {
-            following: {
-              arrayValue: {
-                values: following.map(id => ({ stringValue: id }))
-              }
-            }
-          }
-        })
-      }
-    );
-
-    if (!response.ok) {
-      throw new Error('Failed to update following list');
-    }
-
-    // Update localStorage with new following list
-    const updatedUser = {
-      ...currentUser,
-      following
-    };
-    localStorage.setItem('user', JSON.stringify(updatedUser));
-
-    // Trigger a storage event to refresh the Home component
-    window.dispatchEvent(new Event('storage'));
-
-    return true;
-  } catch (error) {
-    console.error('Error following user:', error);
-    throw error;
-  }
-};
-
-export const unfollowUser = async (userId) => {
-  try {
-    const currentUser = JSON.parse(localStorage.getItem('user'));
-    if (!currentUser || !currentUser.token) {
-      throw new Error('User not authenticated');
-    }
-
-    // Remove user from following list
-    const following = (currentUser.following || []).filter(id => id !== userId);
-    
-    // Update only the following field in Firebase
-    const response = await fetch(
+    // 1. Update current user's following list using updateMask
+    const currentUserResponse = await fetch(
       `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${currentUser.localId}?updateMask.fieldPaths=following`,
       {
         method: 'PATCH',
@@ -451,11 +393,136 @@ export const unfollowUser = async (userId) => {
       }
     );
 
-    if (!response.ok) {
-      throw new Error('Failed to unfollow user');
+    if (!currentUserResponse.ok) {
+      throw new Error('Failed to update following list');
     }
 
-    // Update local storage
+    // 2. Get target user's current data
+    const targetUserResponse = await fetch(
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${userId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      }
+    );
+
+    const targetUserData = await targetUserResponse.json();
+    const currentFollowers = targetUserData.fields?.followers?.arrayValue?.values?.map(v => v.stringValue) || [];
+    
+    if (!currentFollowers.includes(currentUser.localId)) {
+      currentFollowers.push(currentUser.localId);
+    }
+
+    // 3. Update only the followers field using updateMask
+    const updateFollowersResponse = await fetch(
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${userId}?updateMask.fieldPaths=followers`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        },
+        body: JSON.stringify({
+          fields: {
+            followers: {
+              arrayValue: {
+                values: currentFollowers.map(id => ({ stringValue: id }))
+              }
+            }
+          }
+        })
+      }
+    );
+
+    if (!updateFollowersResponse.ok) {
+      throw new Error('Failed to update followers list');
+    }
+
+    // Update localStorage
+    localStorage.setItem('user', JSON.stringify({
+      ...currentUser,
+      following
+    }));
+
+    return true;
+  } catch (error) {
+    console.error('Error following user:', error);
+    throw error;
+  }
+};
+
+export const unfollowUser = async (userId) => {
+  try {
+    const currentUser = JSON.parse(localStorage.getItem('user'));
+    if (!currentUser || !currentUser.token) {
+      throw new Error('User not authenticated');
+    }
+
+    // Remove user from following list
+    const following = (currentUser.following || []).filter(id => id !== userId);
+    
+    // 1. Update current user's following list
+    const currentUserResponse = await fetch(
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${currentUser.localId}?updateMask.fieldPaths=following`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        },
+        body: JSON.stringify({
+          fields: {
+            following: {
+              arrayValue: {
+                values: following.map(id => ({ stringValue: id }))
+              }
+            }
+          }
+        })
+      }
+    );
+
+    if (!currentUserResponse.ok) {
+      throw new Error('Failed to update following list');
+    }
+
+    // 2. Update target user's followers list
+    const targetUserResponse = await fetch(
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${userId}`,
+      {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${currentUser.token}`
+        }
+      }
+    );
+
+    const targetUserData = await targetUserResponse.json();
+    const currentFollowers = targetUserData.fields?.followers?.arrayValue?.values?.map(v => v.stringValue) || [];
+    const updatedFollowers = currentFollowers.filter(id => id !== currentUser.localId);
+
+    await fetch(
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/users/${userId}?updateMask.fieldPaths=followers`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${currentUser.token}`
+        },
+        body: JSON.stringify({
+          fields: {
+            followers: {
+              arrayValue: {
+                values: updatedFollowers.map(id => ({ stringValue: id }))
+              }
+            }
+          }
+        })
+      }
+    );
+
+    // Update localStorage
     localStorage.setItem('user', JSON.stringify({
       ...currentUser,
       following

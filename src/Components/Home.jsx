@@ -79,10 +79,10 @@ function Home() {
               <div className="card shadow-sm">
                 <div className="card-body">
                   <div className="d-flex align-items-center mb-3">
-                    {post.fields.authorPhoto?.stringValue ? (
+                    {post?.fields?.authorPhoto?.stringValue ? (
                       <img
                         src={post.fields.authorPhoto.stringValue}
-                        alt={post.fields.authorName.stringValue}
+                        alt={post.fields?.authorName?.stringValue || 'User'}
                         className="rounded-circle me-2"
                         style={{ width: '40px', height: '40px', objectFit: 'cover' }}
                       />
@@ -94,31 +94,31 @@ function Home() {
                     )}
                     <div>
                       <h5 className="card-title mb-0">
-                        {post.fields.authorName?.stringValue || 'Anonymous'}
+                        {post?.fields?.authorName?.stringValue || 'Anonymous'}
                       </h5>
                       <small className="text-muted">
-                        {new Date(post.fields.createdAt?.timestampValue || Date.now()).toLocaleDateString()}
+                        {new Date(post?.fields?.createdAt?.timestampValue || Date.now()).toLocaleDateString()}
                       </small>
                     </div>
                   </div>
                   <h6 className="card-subtitle mb-2">
-                    {post.fields.title?.stringValue || ''}
+                    {post?.fields?.title?.stringValue || ''}
                   </h6>
                   <p className="card-text">
-                    {post.fields.content?.stringValue || ''}
+                    {post?.fields?.content?.stringValue || ''}
                   </p>
                   <div className="d-flex justify-content-between align-items-center">
                     <div>
                       <button className="btn btn-link text-decoration-none">
                         <FaHeart className="text-danger" />
                         <span className="ms-1">
-                          {post.fields.likes?.arrayValue?.values?.length || 0}
+                          {post?.fields?.likes?.arrayValue?.values?.length || 0}
                         </span>
                       </button>
                       <button className="btn btn-link text-decoration-none ms-2">
                         <FaComment />
                         <span className="ms-1">
-                          {post.fields.comments?.arrayValue?.values?.length || 0}
+                          {post?.fields?.comments?.arrayValue?.values?.length || 0}
                         </span>
                       </button>
                     </div>
