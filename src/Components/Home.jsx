@@ -11,6 +11,7 @@ function Home() {
   const loading = useSelector(state => state.posts.loading);
   const [expandedPost, setExpandedPost] = React.useState(null);
   const [likingPosts, setLikingPosts] = React.useState(new Set());
+  const currentUser = JSON.parse(localStorage.getItem('user'));
 
   useEffect(() => {
     fetchPosts();
@@ -19,9 +20,16 @@ function Home() {
   const fetchPosts = async () => {
     try {
       dispatch(fetchPostsStart());
-      const postsData = await getPosts();
-      console.log('Fetched posts:', postsData);
-      dispatch(fetchPostsSuccess(postsData));
+      const allPosts = await getPosts();
+      
+      // Filter posts to only show those from followed users and current user
+      const filteredPosts = allPosts.filter(post => 
+        currentUser?.following?.includes(post.userId) || 
+        post.userId === currentUser?.localId
+      );
+      
+      console.log('Fetched followed posts:', filteredPosts);
+      dispatch(fetchPostsSuccess(filteredPosts));
     } catch (error) {
       console.error('Error fetching posts:', error);
       dispatch(fetchPostsFailure('Failed to fetch posts'));

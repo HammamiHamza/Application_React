@@ -62,7 +62,7 @@ export const createPost = async (postData) => {
   }
 };
 
-export const getPosts = async () => {
+export const getPosts = async (forHomePage = false) => {
   try {
     const user = JSON.parse(localStorage.getItem('user'));
     if (!user || !user.token) {
@@ -87,16 +87,18 @@ export const getPosts = async () => {
       return [];
     }
 
-    // Get the list of users we're following (including our own ID)
-    const followedUsers = [...(user.following || []), user.localId];
+    // Get the list of followed users (including current user)
+    const followedUsers = forHomePage ? 
+      [...(user.following || []), user.localId] : 
+      null;
 
     return data.documents
       .map(doc => {
         try {
           const postUserId = doc.fields?.userId?.stringValue;
           
-          // Only include posts from users we follow and our own posts
-          if (!followedUsers.includes(postUserId)) {
+          // If we're on the home page and the post is not from a followed user, skip it
+          if (forHomePage && !followedUsers.includes(postUserId)) {
             return null;
           }
 
@@ -122,8 +124,8 @@ export const getPosts = async () => {
           return null;
         }
       })
-      .filter(post => post !== null) // Remove null posts
-      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sort by date, newest first
+      .filter(post => post !== null)
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   } catch (error) {
     console.error('Error fetching posts:', error);
     throw error;
@@ -295,22 +297,22 @@ export const addComment = async (postId, commentText) => {
     const postData = await getResponse.json();
     const existingComments = postData.fields?.comments?.arrayValue?.values || [];
 
-    // Create new comment
+    // Create new comment with content instead of text
     const newComment = {
-      text: commentText,
+      content: commentText,  // Changed from text to content
       authorId: user.localId,
       authorName: user.displayName || `${user.firstName} ${user.lastName}`,
-      authorPhoto: user.photoURL || '',
+      authorPhoto: user.photoUrl || '',
       createdAt: new Date().toISOString()
     };
 
-    // Add new comment to existing comments
+    // Update the fields structure
     const updatedComments = [
       ...existingComments,
       {
         mapValue: {
           fields: {
-            text: { stringValue: newComment.text },
+            content: { stringValue: newComment.content },  // Changed from text to content
             authorId: { stringValue: newComment.authorId },
             authorName: { stringValue: newComment.authorName },
             authorPhoto: { stringValue: newComment.authorPhoto },
