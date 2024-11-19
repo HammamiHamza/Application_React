@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';  // I
 import { GoogleOAuthProvider } from '@react-oauth/google';  // Ensure this is inside the Router
 import 'bootstrap/dist/css/bootstrap.min.css';
 
+import { Provider } from 'react-redux';
+import { store } from './store';
 
 import Login from './Components/Login';
 import Register from './Components/Register';
@@ -15,6 +17,15 @@ import Navbar from './Components/Navbar';
 import Users from './Components/Users';
 import Home from './Components/Home';
 
+console.log('Navbar:', Navbar);
+console.log('Home:', Home);
+console.log('Login:', Login);
+console.log('Register:', Register);
+console.log('Profile:', Profile);
+console.log('Posts:', Posts);
+console.log('Comments:', Comments);
+console.log('Users:', Users);
+
 function App() {
   const [darkMode, setDarkMode] = useState(localStorage.getItem('darkMode') === 'true');
 
@@ -24,8 +35,9 @@ function App() {
   }, [darkMode]);
 
   return (
-    <Router>  {/* Wrap your app in Router */}
-      <Navbar />
+    <Provider store={store}>
+      <Router>  {/* Wrap your app in Router */}
+        <Navbar />
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/login" element={<Login />} />
@@ -35,7 +47,8 @@ function App() {
           <Route path="/comments" element={<Comments />} />
           <Route path="/users" element={<Users />} />
         </Routes>
-    </Router>
+      </Router>
+    </Provider>
   );
 }
 

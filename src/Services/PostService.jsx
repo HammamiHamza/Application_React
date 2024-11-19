@@ -1,4 +1,3 @@
-const API_KEY = 'AIzaSyA748K_vC-v9DbEXuXfSG0l7gtqfN-aNQ4';
 const FIRESTORE_URL = 'https://firestore.googleapis.com/v1';
 
 export const createPost = async (postData) => {
@@ -32,12 +31,33 @@ export const createPost = async (postData) => {
     );
 
     if (!response.ok) {
-      throw new Error('Failed to create post');
+      throw new Error(`Failed to create post: ${response.status} ${response.statusText}`);
     }
 
-    return await response.json();
+    const result = await response.json();
+    console.log('Create post response:', result);
+
+    if (!result || !result.name) {
+      throw new Error('Invalid response format from server');
+    }
+
+    const formattedPost = {
+      id: result.name.split('/').pop(),
+      title: result.fields?.title?.stringValue || '',
+      content: result.fields?.content?.stringValue || '',
+      userId: result.fields?.userId?.stringValue || '',
+      authorName: result.fields?.authorName?.stringValue || 'Anonymous',
+      authorPhoto: result.fields?.authorPhoto?.stringValue || '',
+      createdAt: result.fields?.createdAt?.timestampValue || new Date().toISOString(),
+      likes: [],
+      comments: []
+    };
+
+    console.log('Formatted post:', formattedPost);
+    return formattedPost;
+
   } catch (error) {
-    console.error('Error creating post:', error);
+    console.error('Error in createPost service:', error);
     throw error;
   }
 };
@@ -63,37 +83,47 @@ export const getPosts = async () => {
     }
 
     const data = await response.json();
-    
-    if (!data || !data.documents) {
-      console.log('No posts found:', data);
+    if (!data.documents) {
       return [];
     }
 
-    return data.documents.map(doc => {
-      try {
-        return {
-          id: doc.name.split('/').pop(),
-          title: doc.fields?.title?.stringValue || '',
-          content: doc.fields?.content?.stringValue || '',
-          userId: doc.fields?.userId?.stringValue || '',
-          authorName: doc.fields?.authorName?.stringValue || 'Anonymous',
-          authorPhoto: doc.fields?.authorPhoto?.stringValue || '',
-          createdAt: doc.fields?.createdAt?.timestampValue || new Date().toISOString(),
-          likes: doc.fields?.likes?.arrayValue?.values || [],
-          comments: doc.fields?.comments?.arrayValue?.values?.map(comment => ({
-            content: comment.mapValue?.fields?.content?.stringValue || '',
-            authorId: comment.mapValue?.fields?.authorId?.stringValue || '',
-            authorName: comment.mapValue?.fields?.authorName?.stringValue || 'Anonymous',
-            authorPhoto: comment.mapValue?.fields?.authorPhoto?.stringValue || '',
-            createdAt: comment.mapValue?.fields?.createdAt?.timestampValue || new Date().toISOString()
-          })) || []
-        };
-      } catch (error) {
-        console.error('Error parsing post document:', doc, error);
-        return null;
-      }
-    }).filter(post => post !== null);
+    // Get the list of users we're following (including our own ID)
+    const followedUsers = [...(user.following || []), user.localId];
 
+    return data.documents
+      .map(doc => {
+        try {
+          const postUserId = doc.fields?.userId?.stringValue;
+          
+          // Only include posts from users we follow and our own posts
+          if (!followedUsers.includes(postUserId)) {
+            return null;
+          }
+
+          return {
+            id: doc.name.split('/').pop(),
+            title: doc.fields?.title?.stringValue || '',
+            content: doc.fields?.content?.stringValue || '',
+            userId: postUserId,
+            authorName: doc.fields?.authorName?.stringValue || 'Anonymous',
+            authorPhoto: doc.fields?.authorPhoto?.stringValue || '',
+            createdAt: doc.fields?.createdAt?.timestampValue || new Date().toISOString(),
+            likes: doc.fields?.likes?.arrayValue?.values?.map(v => v.stringValue) || [],
+            comments: doc.fields?.comments?.arrayValue?.values?.map(comment => ({
+              content: comment.mapValue?.fields?.content?.stringValue || '',
+              authorId: comment.mapValue?.fields?.authorId?.stringValue || '',
+              authorName: comment.mapValue?.fields?.authorName?.stringValue || 'Anonymous',
+              authorPhoto: comment.mapValue?.fields?.authorPhoto?.stringValue || '',
+              createdAt: comment.mapValue?.fields?.createdAt?.timestampValue || new Date().toISOString()
+            })) || []
+          };
+        } catch (error) {
+          console.error('Error parsing post document:', doc, error);
+          return null;
+        }
+      })
+      .filter(post => post !== null) // Remove null posts
+      .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)); // Sort by date, newest first
   } catch (error) {
     console.error('Error fetching posts:', error);
     throw error;
@@ -237,6 +267,91 @@ export const likePost = async (postId) => {
     return await updateResponse.json();
   } catch (error) {
     console.error('Error updating likes:', error);
+    throw error;
+  }
+};
+
+export const addComment = async (postId, commentText) => {
+  try {
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!user || !user.token) {
+      throw new Error('User not authenticated');
+    }
+
+    // Get the current post first to append to existing comments
+    const getResponse = await fetch(
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/posts/${postId}`,
+      {
+        headers: {
+          'Authorization': `Bearer ${user.token}`
+        }
+      }
+    );
+
+    if (!getResponse.ok) {
+      throw new Error('Failed to fetch post');
+    }
+
+    const postData = await getResponse.json();
+    const existingComments = postData.fields?.comments?.arrayValue?.values || [];
+
+    // Create new comment
+    const newComment = {
+      text: commentText,
+      authorId: user.localId,
+      authorName: user.displayName || `${user.firstName} ${user.lastName}`,
+      authorPhoto: user.photoURL || '',
+      createdAt: new Date().toISOString()
+    };
+
+    // Add new comment to existing comments
+    const updatedComments = [
+      ...existingComments,
+      {
+        mapValue: {
+          fields: {
+            text: { stringValue: newComment.text },
+            authorId: { stringValue: newComment.authorId },
+            authorName: { stringValue: newComment.authorName },
+            authorPhoto: { stringValue: newComment.authorPhoto },
+            createdAt: { timestampValue: newComment.createdAt }
+          }
+        }
+      }
+    ];
+
+    // Update the post with new comments
+    const response = await fetch(
+      `${FIRESTORE_URL}/projects/reactproject-59e80/databases/(default)/documents/posts/${postId}?updateMask.fieldPaths=comments`,
+      {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${user.token}`
+        },
+        body: JSON.stringify({
+          fields: {
+            comments: {
+              arrayValue: {
+                values: updatedComments
+              }
+            }
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error('Failed to add comment');
+    }
+
+    const result = await response.json();
+    return {
+      ...result,
+      id: postId
+    };
+  } catch (error) {
+    console.error('Error adding comment:', error);
     throw error;
   }
 }; 
